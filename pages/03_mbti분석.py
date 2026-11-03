@@ -8,16 +8,15 @@ from pathlib import Path
 # 페이지 설정
 # ---------------------------------
 st.set_page_config(
-    page_title="국가별 MBTI 분석",
+    page_title="Global MBTI",
     page_icon="🌎",
     layout="wide"
 )
 
 # ---------------------------------
-# CSV 파일 경로 설정
+# CSV 파일 경로
 # ---------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 CSV_PATH = BASE_DIR / "countriesMBTI_16types.csv"
 
 
@@ -26,21 +25,14 @@ CSV_PATH = BASE_DIR / "countriesMBTI_16types.csv"
 # ---------------------------------
 @st.cache_data
 def load_data():
-
-    df = pd.read_csv(CSV_PATH)
-
-    return df
+    return pd.read_csv(CSV_PATH)
 
 
 if not CSV_PATH.exists():
-    st.error(
-        f"CSV 파일을 찾을 수 없습니다.\n\n"
-        f"현재 확인한 경로: {CSV_PATH}"
-    )
+    st.error(f"CSV 파일을 찾을 수 없습니다: {CSV_PATH}")
     st.stop()
 
 df = load_data()
-
 
 # ---------------------------------
 # 데이터 정리
@@ -59,69 +51,108 @@ df[mbti_columns] = df[mbti_columns].apply(
 
 df = df.dropna(subset=["Country"])
 
-countries = sorted(df["Country"].unique())
-
-
 # ---------------------------------
 # 제목
 # ---------------------------------
 st.title("🌎 Global MBTI")
-st.subheader("국가별 MBTI 유형 분포 분석")
+st.subheader("세계 국가별 MBTI 비율 순위")
 
 st.write(
-    "국가를 선택하면 해당 국가의 "
-    "16가지 MBTI 유형별 비율을 확인할 수 있습니다."
+    "MBTI 유형을 선택하면 해당 유형의 비율이 "
+    "높은 국가부터 순서대로 확인할 수 있습니다."
 )
 
 st.divider()
 
-
 # ---------------------------------
-# 국가 선택
+# MBTI 선택
 # ---------------------------------
-selected_country = st.selectbox(
-    "🌍 국가를 선택하세요",
-    countries
+selected_mbti = st.selectbox(
+    "🧬 MBTI 유형을 선택하세요",
+    mbti_columns
 )
 
-country_data = df[
-    df["Country"] == selected_country
-].iloc[0]
-
-
 # ---------------------------------
-# MBTI 데이터 정리
+# 국가별 비율 정리
 # ---------------------------------
 chart_df = pd.DataFrame({
-    "MBTI": mbti_columns,
-    "비율": [
-        country_data[mbti] * 100
-        for mbti in mbti_columns
-    ]
+    "Country": df["Country"],
+    "비율": df[selected_mbti] * 100
 })
 
 chart_df = chart_df.dropna(subset=["비율"])
 
+# 높은 비율부터 정렬
 chart_df = chart_df.sort_values(
     by="비율",
     ascending=False
 ).reset_index(drop=True)
 
+# 순위 추가
+chart_df.insert(
+    0,
+    "순위",
+    range(1, len(chart_df) + 1)
+)
+
+# ---------------------------------
+# 그래프 표시 개수 선택
+# ---------------------------------
+display_option = st.selectbox(
+    "📊 그래프에 표시할 국가 수",
+    ["TOP 10", "TOP 20", "TOP 50", "전체 국가"],
+    index=1
+)
+
+if display_option == "TOP 10":
+    display_df = chart_df.head(10)
+
+elif display_option == "TOP 20":
+    display_df = chart_df.head(20)
+
+elif display_option == "TOP 50":
+    display_df = chart_df.head(50)
+
+else:
+    display_df = chart_df.copy()
+
+# ---------------------------------
+# 최고 비율 정보
+# ---------------------------------
+top_country = chart_df.iloc[0]["Country"]
+top_ratio = chart_df.iloc[0]["비율"]
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric(
+    "선택한 MBTI",
+    selected_mbti
+)
+
+col2.metric(
+    "1위 국가",
+    top_country
+)
+
+col3.metric(
+    "1위 비율",
+    f"{top_ratio:.2f}%"
+)
+
+st.divider()
 
 # ---------------------------------
 # 그래프 색상 설정
 # ---------------------------------
 colors = []
 
-for i in range(len(chart_df)):
+for i in range(len(display_df)):
 
     if i == 0:
-        # 1위: 빨간색
         colors.append("#E53935")
 
     else:
-        # 나머지: 초록색에서 연한 초록색
-        progress = (i - 1) / max(len(chart_df) - 2, 1)
+        progress = (i - 1) / max(len(display_df) - 2, 1)
 
         start_color = (46, 125, 50)
         end_color = (232, 245, 233)
@@ -143,44 +174,20 @@ for i in range(len(chart_df)):
 
         colors.append(f"rgb({r},{g},{b})")
 
-
 # ---------------------------------
-# 최고 비율 정보
+# 국가별 막대그래프
 # ---------------------------------
-top_mbti = chart_df.iloc[0]["MBTI"]
-top_ratio = chart_df.iloc[0]["비율"]
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric(
-    "선택 국가",
-    selected_country
+st.subheader(
+    f"📊 {selected_mbti} 국가별 비율 순위"
 )
-
-col2.metric(
-    "가장 높은 MBTI",
-    top_mbti
-)
-
-col3.metric(
-    "최고 비율",
-    f"{top_ratio:.2f}%"
-)
-
-st.divider()
-
-
-# ---------------------------------
-# 막대그래프
-# ---------------------------------
-st.subheader(f"📊 {selected_country} MBTI 비율")
 
 fig = px.bar(
-    chart_df,
+    display_df,
     x="비율",
-    y="MBTI",
+    y="Country",
     orientation="h",
-    text="비율"
+    text="비율",
+    custom_data=["순위"]
 )
 
 fig.update_traces(
@@ -188,7 +195,8 @@ fig.update_traces(
     texttemplate="%{text:.2f}%",
     textposition="outside",
     hovertemplate=(
-        "MBTI: %{y}<br>"
+        "순위: %{customdata[0]}위<br>"
+        "국가: %{y}<br>"
         "비율: %{x:.2f}%<extra></extra>"
     )
 )
@@ -196,7 +204,7 @@ fig.update_traces(
 fig.update_layout(
     yaxis=dict(
         autorange="reversed",
-        title="MBTI 유형"
+        title="국가"
     ),
 
     xaxis=dict(
@@ -205,11 +213,12 @@ fig.update_layout(
     ),
 
     showlegend=False,
-    height=650,
+
+    height=max(500, len(display_df) * 32),
 
     margin=dict(
         l=40,
-        r=60,
+        r=70,
         t=30,
         b=40
     ),
@@ -229,24 +238,22 @@ st.plotly_chart(
     use_container_width=True
 )
 
-
 # ---------------------------------
-# 전체 데이터 표
+# 국가별 순위표
 # ---------------------------------
-with st.expander("📋 MBTI 전체 비율 확인하기"):
+with st.expander("🏆 국가별 전체 순위표"):
 
-    display_df = chart_df.copy()
+    result_df = chart_df.copy()
 
-    display_df["비율"] = display_df["비율"].map(
+    result_df["비율"] = result_df["비율"].map(
         lambda x: f"{x:.2f}%"
     )
 
     st.dataframe(
-        display_df,
+        result_df,
         use_container_width=True,
         hide_index=True
     )
-
 
 # ---------------------------------
 # 하단 설명
@@ -254,7 +261,7 @@ with st.expander("📋 MBTI 전체 비율 확인하기"):
 st.divider()
 
 st.caption(
-    "Global MBTI | Country-based MBTI Distribution"
+    "Global MBTI | World MBTI Ranking"
 )
 
 st.caption(
