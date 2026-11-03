@@ -2,38 +2,45 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import os
+from pathlib import Path
 
 # ---------------------------------
-# 기본 페이지 설정
+# 페이지 설정
 # ---------------------------------
 st.set_page_config(
-    page_title="Global MBTI",
+    page_title="국가별 MBTI 분석",
     page_icon="🌎",
     layout="wide"
 )
+
+# ---------------------------------
+# CSV 파일 경로 설정
+# ---------------------------------
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+CSV_PATH = BASE_DIR / "countriesMBTI_16types.csv"
+
 
 # ---------------------------------
 # 데이터 불러오기
 # ---------------------------------
 @st.cache_data
 def load_data():
-    file_path = os.path.join(
-        os.path.dirname(__file__),
-        "countriesMBTI_16types.csv"
-    )
 
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(CSV_PATH)
 
     return df
 
 
-try:
-    df = load_data()
-
-except FileNotFoundError:
-    st.error("CSV 파일을 찾을 수 없습니다. app.py와 같은 폴더에 CSV 파일을 넣어주세요.")
+if not CSV_PATH.exists():
+    st.error(
+        f"CSV 파일을 찾을 수 없습니다.\n\n"
+        f"현재 확인한 경로: {CSV_PATH}"
+    )
     st.stop()
+
+df = load_data()
+
 
 # ---------------------------------
 # 데이터 정리
@@ -46,13 +53,14 @@ mbti_columns = [
 df["Country"] = df["Country"].astype(str).str.strip()
 
 df[mbti_columns] = df[mbti_columns].apply(
-    pd.to_numeric, errors="coerce"
+    pd.to_numeric,
+    errors="coerce"
 )
 
 df = df.dropna(subset=["Country"])
 
-# 국가 이름 정렬
 countries = sorted(df["Country"].unique())
+
 
 # ---------------------------------
 # 제목
@@ -61,11 +69,12 @@ st.title("🌎 Global MBTI")
 st.subheader("국가별 MBTI 유형 분포 분석")
 
 st.write(
-    "원하는 국가를 선택하면 해당 국가의 "
+    "국가를 선택하면 해당 국가의 "
     "16가지 MBTI 유형별 비율을 확인할 수 있습니다."
 )
 
 st.divider()
+
 
 # ---------------------------------
 # 국가 선택
@@ -75,10 +84,10 @@ selected_country = st.selectbox(
     countries
 )
 
-# 선택한 국가 데이터
 country_data = df[
     df["Country"] == selected_country
 ].iloc[0]
+
 
 # ---------------------------------
 # MBTI 데이터 정리
@@ -91,11 +100,13 @@ chart_df = pd.DataFrame({
     ]
 })
 
-# 높은 비율 순서대로 정렬
+chart_df = chart_df.dropna(subset=["비율"])
+
 chart_df = chart_df.sort_values(
     by="비율",
     ascending=False
 ).reset_index(drop=True)
+
 
 # ---------------------------------
 # 그래프 색상 설정
@@ -109,7 +120,7 @@ for i in range(len(chart_df)):
         colors.append("#E53935")
 
     else:
-        # 나머지: 초록색에서 연한 초록색으로
+        # 나머지: 초록색에서 연한 초록색
         progress = (i - 1) / max(len(chart_df) - 2, 1)
 
         start_color = (46, 125, 50)
@@ -132,6 +143,7 @@ for i in range(len(chart_df)):
 
         colors.append(f"rgb({r},{g},{b})")
 
+
 # ---------------------------------
 # 최고 비율 정보
 # ---------------------------------
@@ -140,14 +152,26 @@ top_ratio = chart_df.iloc[0]["비율"]
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("선택 국가", selected_country)
-col2.metric("가장 높은 MBTI", top_mbti)
-col3.metric("최고 비율", f"{top_ratio:.2f}%")
+col1.metric(
+    "선택 국가",
+    selected_country
+)
+
+col2.metric(
+    "가장 높은 MBTI",
+    top_mbti
+)
+
+col3.metric(
+    "최고 비율",
+    f"{top_ratio:.2f}%"
+)
 
 st.divider()
 
+
 # ---------------------------------
-# 막대 그래프
+# 막대그래프
 # ---------------------------------
 st.subheader(f"📊 {selected_country} MBTI 비율")
 
@@ -174,15 +198,25 @@ fig.update_layout(
         autorange="reversed",
         title="MBTI 유형"
     ),
+
     xaxis=dict(
         title="비율 (%)",
         rangemode="tozero"
     ),
+
     showlegend=False,
     height=650,
-    margin=dict(l=40, r=60, t=30, b=40),
+
+    margin=dict(
+        l=40,
+        r=60,
+        t=30,
+        b=40
+    ),
+
     plot_bgcolor="white",
     paper_bgcolor="white",
+
     font=dict(
         family="Arial",
         size=13,
@@ -194,6 +228,7 @@ st.plotly_chart(
     fig,
     use_container_width=True
 )
+
 
 # ---------------------------------
 # 전체 데이터 표
@@ -211,6 +246,7 @@ with st.expander("📋 MBTI 전체 비율 확인하기"):
         use_container_width=True,
         hide_index=True
     )
+
 
 # ---------------------------------
 # 하단 설명
