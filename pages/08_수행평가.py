@@ -393,4 +393,3 @@ st.divider()
 st.caption(
     "Sweet Data | 공공데이터 기반 음식 영양정보 분석 프로그램"
 )
-
