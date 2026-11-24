@@ -22,18 +22,14 @@ st.write(
 )
 
 # -------------------------
+
+# -------------------------
 # 2. 데이터 불러오기
 # -------------------------
 
-st.sidebar.header("📂 데이터 불러오기")
-
-uploaded_file = st.sidebar.file_uploader(
-    "공공데이터 CSV 파일 업로드",
-    type=["csv"]
-)
-
-# 현재 파일 위치를 기준으로 CSV 경로 설정
+# GitHub 저장소에 업로드한 CSV 파일 자동 불러오기
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 DATA_FILE = BASE_DIR / "전국통합식품영양성분정보_음식_표준데이터.csv"
 
 
@@ -42,27 +38,14 @@ def load_data(file):
     try:
         return pd.read_csv(file, encoding="utf-8-sig")
     except UnicodeDecodeError:
-        if hasattr(file, "seek"):
-            file.seek(0)
         return pd.read_csv(file, encoding="cp949")
 
 
-if uploaded_file is not None:
-    df = load_data(uploaded_file)
-
-elif DATA_FILE.exists():
+if DATA_FILE.exists():
     df = load_data(DATA_FILE)
-
 else:
-    st.warning(
-        "GitHub 저장소 최상위 폴더에 food_nutrition.csv 파일을 올려 주세요."
-    )
-    st.info("CSV 파일을 직접 업로드해도 사용할 수 있습니다.")
-    st.markdown(
-        "[공공데이터포털 데이터 다운로드](https://www.data.go.kr/data/15100070/standard.do)"
-    )
+    st.error("영양정보 CSV 파일을 찾을 수 없습니다.")
     st.stop()
-
 
 df.columns = df.columns.astype(str).str.strip()
 
