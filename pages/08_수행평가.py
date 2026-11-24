@@ -34,7 +34,7 @@ uploaded_file = st.sidebar.file_uploader(
 
 # 현재 파일 위치를 기준으로 CSV 경로 설정
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_FILE = BASE_DIR / "food_nutrition.csv"
+DATA_FILE = BASE_DIR / "전국통합식품영양성분정보_음식_표준데이터.csv"
 
 
 @st.cache_data
